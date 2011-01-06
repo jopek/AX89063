@@ -6,20 +6,20 @@
 #include <errno.h>
 
 #ifdef HAVE_CONFIG_H
-  #include "config.h"
+#include "config.h"
 #endif
 
 #include "report.h"
 #include "ax89063.h"
 
-
 // Use hardcoded interface for now
-#define AX89063_DEFAULT_DEVICE "/dev/ttyS0" //TODO
+#define AX89063_DEFAULT_DEVICE "/dev/ttyS1"
 #define AX89063_DEAFULT_SPEED B9600 
-#define AX89063_WIDTH //TODO
-#define AX89063_HEIGHT //TODO
-#define AX89063_CELLWIDTH //TODO
-#define AX89063_CELLHEIGHT //TODO
+#define AX89063_WIDTH 16
+#define AX89063_HEIGHT 2
+#define AX89063_CELLWIDTH 5
+#define AX89063_CELLHEIGHT 7
+#define AX89063_HWFRAMEBUFLEN 80
 
 typedef struct driver_private_data {
 	char device[256];
@@ -30,6 +30,7 @@ typedef struct driver_private_data {
 	int cellwidth;
 	int cellheight;
 	char *framebuf;
+	char *framebuf_hw;
 } PrivateData;
 
 MODULE_EXPORT char * api_version = API_VERSION;
@@ -37,87 +38,194 @@ MODULE_EXPORT int stay_in_foreground = 1;
 MODULE_EXPORT int supports_multiple = 0;
 MODULE_EXPORT char *symbol_prefix = "ax89063_";
 
-MODULE_EXPORT int
-ax89063_init(Driver *drvthis) {
-  PrivateData *p;
-  struct termios portset;
+MODULE_EXPORT int ax89063_init(Driver *drvthis) {
+	PrivateData *p;
+	struct termios portset;
 
-  p = (PrivateData *) calloc(1, sizeof(PrivateData));
-  if ( (p == NULL) || (drvthis->store_private_ptr(drvthis, p)) )
-    return -1;
+	p = (PrivateData *) calloc(1, sizeof(PrivateData));
+	if ((p == NULL) || (drvthis->store_private_ptr(drvthis, p)))
+		return -1;
 
-  p->fd         = -1; 
-  p->framebuf   = NULL;
-  p->speed      = B9600;
-  p->width      = AX89063_WIDTH;
-  p->height     = AX89063_HEIGHT;
-  p->cellwidth  = AX89063_CELLWIDTH;
-  p->cellheight = AX89063_CELLHEIGHT;
+	p->fd = -1;
+	p->framebuf = NULL;
+	p->framebuf_hw = NULL;
+	p->speed = B9600;
+	p->width = AX89063_WIDTH;
+	p->height = AX89063_HEIGHT;
+	p->cellwidth = AX89063_CELLWIDTH;
+	p->cellheight = AX89063_CELLHEIGHT;
 
-  /* Get device name, use default if it cannot be retrieved.*/
-  strncpy(p->device, drvthis->config_get_string(drvthis->name, "Device", 0,
-        AX89063_DEFAULT_DEVICE), sizeof(p->device));
-  p->device[sizeof(p->device)-1] = '\0';
-  report(RPT_INFO, "%s: using Device %s", drvthis->name, p->device);
+	/* Get device name, use default if it cannot be retrieved.*/
+	strncpy(p->device, drvthis->config_get_string(drvthis->name, "Device", 0,
+			AX89063_DEFAULT_DEVICE), sizeof(p->device));
+	p->device[sizeof(p->device) - 1] = '\0';
+	report(RPT_INFO, "%s: using Device %s", drvthis->name, p->device);
 
-  /* Get device speed. */
-  if (p->speed != AX89063_DEFAULT_SPEED)
-  {
-      report(RPT_WARNING, "%s: Illegal speed (%d) detected in config file. Using default (%d).", drvthis->name, p->speed, AX89063_DEFAULT_SPEED);
-  } else 
-  {
-    p->speed = AX89063_DEFAULT_SPEED;
-  }
-  
-  /* Set up serial port and open it. */
-  p->fd = open(p->device, 0_RDWR | 0_NOCTTY, 0_NDELAY);
-  if (p->fd == -1) {
-      report(RPT_ERR, "AX89063: serial: could not open device %s (%s)", device, strerror(errno));
-      return -1;
-  }
+	/* Get device speed. */
+	if (p->speed != AX89063_DEFAULT_SPEED) {
+		report(
+				RPT_WARNING,
+				"%s: Illegal speed (%d) detected in config file. Using default (%d).",
+				drvthis->name, p->speed, AX89063_DEFAULT_SPEED);
+	} else {
+		p->speed = AX89063_DEFAULT_SPEED;
+	}
 
-  /* Get serial device parameters */
-  tcgetattr(f->fd, &portset);
-  
-  /* RAW mode TODO: why? */
-  #ifdef HAVE_CFMAKERAW
-    cfmakeraw(&portset);
-  #else
-    portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
-                          | INLCR | IGNCR | ICRNL | IXON );
-    portset.c_oflag &= ~OPOST;
-    portset.c_lflag &= ~( ECHO | ECHONL | ICANON | ISIG | IEXTEN );
-    portset.c_cflag &= ~( CSIZE | PARENB | CRTSCTS );
-    portset.c_cflag |= CS8 | CREAD | CLOCAL ;
-  #endif
+	/* Set up serial port and open it. */
+	p->fd = open(p->device, O_RDWR | O_NOCTTY, O_NDELAY);
+	if (p->fd == -1) {
+		report(RPT_ERR, "AX89063: serial: could not open device %s (%s)",
+				device, strerror(errno));
+		return -1;
+	}
 
-  /* Set port speed */
-  cfsetospeed(&portset, p->speed);
-  cfsetispeed(&portset, p->speed);
+	/* Get serial device parameters */
+	tcgetattr(p->fd, &portset);
+
+	/* RAW mode TODO: why? */
+#ifdef HAVE_CFMAKERAW
+	cfmakeraw(&portset);
+#else
+	portset.c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR
+			| ICRNL | IXON);
+	portset.c_oflag &= ~OPOST;
+	portset.c_lflag &= ~(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+	portset.c_cflag &= ~(CSIZE | PARENB | CRTSCTS);
+	portset.c_cflag |= CS8 | CREAD | CLOCAL;
+#endif
+
+	/* Make sure the frame buffer is there... */
+	p->framebuf = (char *) malloc(p->width * p->height);
+	if (p->framebuf == NULL) {
+		report(RPT_ERR, "%s: unable to create framebuffer", drvthis->name);
+		return -1;
+	}
+	ax89063_clear(drvthis);
+
+	/* Make sure the frame buffer is there... */
+	p->framebuf_hw = (char *) malloc(AX89063_HWFRAMEBUFLEN + 1);
+	if (p->framebuf_hw == NULL) {
+		report(RPT_ERR, "%s: unable to create LCD framebuffer", drvthis->name);
+		return -1;
+	}
+
+	report(RPT_DEBUG, "%s: init() done", drvthis->name);
+	return 0;
 }
 
+MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
+	int x, y;
+	PrivateData *p = drvthis->private_data;
+	char *str = p->framebuf;
+	char SOT = 0x0d;
 
-MODULE_EXPORT void
-ax89063_flush(Driver *drvthis) {
-  PrivateData *p = drvthis->private_data;
-  
-  // Flush all 80 chars at once
-  write(p->fd, p->framebuf, 80);
+	//p->width * p->height
+	for (y = 0; y < p->height; y++)
+		for (x = 0; x < p->width; x++)
+			p->framebuf_hw[y * (AX89063_HWFRAMEBUFLEN / 2) + x + 1] = str++;
+	p->framebuf_hw[0] = 0x0d;
+
+	// Flush all 80 chars at once
+	write(p->fd, p->framebuf_hw, AX89063_HWFRAMEBUFLEN + 1);
 }
 
-MODULE_EXPORT void
-ax89063_close(Driver *drvthis) {
-  PrivateData *p = drvthis->private_data;
+MODULE_EXPORT void ax89063_close(Driver *drvthis) {
+	PrivateData *p = drvthis->private_data;
 
-  if (p != NULL) {
-    if (p->fd >= 0) {
-      close(p->fd);
-    }
+	if (p != NULL) {
+		if (p->fd >= 0) {
+			close(p->fd);
+		}
 
-    if (p->framebuf != NULL)
-      free(p->framebuf);
+		if (p->framebuf != NULL)
+			free(p->framebuf);
 
-    free(p);
-  }
-  drvthis-> store_private_ptr(drvthis, NULL);
+		if (p->framebuf_hw != NULL)
+			free(p->framebuf_hw);
+
+		free(p);
+	}
+	drvthis-> store_private_ptr(drvthis, NULL);
+}
+
+MODULE_EXPORT int ax89063_width(Driver *drvthis) {
+	PrivateData *p = drvthis->private_data;
+	return p->width;
+}
+
+MODULE_EXPORT int ax89063_height(Driver *drvthis) {
+	PrivateData *p = drvthis->private_data;
+	return p->height;
+}
+
+MODULE_EXPORT int ax89063_cellwidth(Driver *drvthis) {
+	PrivateData *p = drvthis->private_data;
+	return p->cellwidth;
+}
+
+MODULE_EXPORT int ax89063_cellheight(Driver *drvthis) {
+	PrivateData *p = drvthis->private_data;
+	return p->cellheight;
+}
+
+MODULE_EXPORT void ax89063_clear(Driver *drvthis) {
+	PrivateData *p = drvthis->private_data;
+	memset(p->framebuf, ' ', p->width * p->height);
+}
+
+MODULE_EXPORT void ax89063_string(Driver *drvthis, int x, int y,
+		const char string[]) {
+	int i = 0;
+	int j = 0;
+	PrivateData *p = drvthis->private_data;
+
+	/* Convert 1-based coords to 0-based... */
+	x--;
+	y--;
+
+	if ((y < 0) || (y >= p->height))
+		return;
+
+	for (i = 0; (string[i] != '\0') && (x < p->width); i++, x++) {
+		/* Check for buffer overflows... */
+		if (x >= 0)
+			p->framebuf[(y * p->width) + x] = string[i];
+	}
+}
+
+MODULE_EXPORT void ax89063_chr(Driver *drvthis, int x, int y, char c) {
+	int i = 0;
+	int j = 0;
+	PrivateData *p = drvthis->private_data;
+	y--;
+	x--;
+
+	if ((x >= 0) && (y >= 0) && (x < p->width) && (y < p->height))
+		p->framebuf[(y * p->width) + x] = c;
+}
+
+MODULE_EXPORT const char *ax89063_get_key(Driver *drvthis) {
+	PrivateData *p = drvthis->private_data;
+	char key;
+	char *str;
+
+	if (read(p->fd, &key, 1) == 1) {
+		report(RPT_DEBUG, "%s: get_key: key 0x%02X pressed", drvthis->name, in);
+		switch (key) {
+		case 'U':
+			str = "up";
+			break;
+		case 'D':
+			str = "down";
+			break;
+		case 'L':
+			str = "left";
+			break;
+		case 'R':
+			str = "right";
+			break;
+		}
+	} else
+		return NULL;
+	return str;
 }
