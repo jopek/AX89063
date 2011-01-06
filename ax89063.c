@@ -4,22 +4,15 @@
 #include <termios.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
+#include "lcd.h"
 #include "report.h"
 #include "ax89063.h"
-
-// Use hardcoded interface for now
-#define AX89063_DEFAULT_DEVICE "/dev/ttyS1"
-#define AX89063_DEAFULT_SPEED B9600 
-#define AX89063_WIDTH 16
-#define AX89063_HEIGHT 2
-#define AX89063_CELLWIDTH 5
-#define AX89063_CELLHEIGHT 7
-#define AX89063_HWFRAMEBUFLEN 80
 
 typedef struct driver_private_data {
 	char device[256];
@@ -49,7 +42,7 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	p->fd = -1;
 	p->framebuf = NULL;
 	p->framebuf_hw = NULL;
-	p->speed = B9600;
+	p->speed = AX89063_DEFAULT_SPEED;
 	p->width = AX89063_WIDTH;
 	p->height = AX89063_HEIGHT;
 	p->cellwidth = AX89063_CELLWIDTH;
@@ -75,14 +68,13 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	p->fd = open(p->device, O_RDWR | O_NOCTTY, O_NDELAY);
 	if (p->fd == -1) {
 		report(RPT_ERR, "AX89063: serial: could not open device %s (%s)",
-				device, strerror(errno));
+				p->device, strerror(errno));
 		return -1;
 	}
 
 	/* Get serial device parameters */
 	tcgetattr(p->fd, &portset);
 
-	/* RAW mode TODO: why? */
 #ifdef HAVE_CFMAKERAW
 	cfmakeraw(&portset);
 #else
@@ -114,19 +106,18 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 }
 
 MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
-	int x, y;
+	int x, y, result;
 	PrivateData *p = drvthis->private_data;
 	char *str = p->framebuf;
-	char SOT = 0x0d;
 
 	//p->width * p->height
 	for (y = 0; y < p->height; y++)
 		for (x = 0; x < p->width; x++)
-			p->framebuf_hw[y * (AX89063_HWFRAMEBUFLEN / 2) + x + 1] = str++;
-	p->framebuf_hw[0] = 0x0d;
+			p->framebuf_hw[y * (AX89063_HWFRAMEBUFLEN / 2) + x + 1] = *(str++);
+	p->framebuf_hw[0] = (char) 0x0d;
 
 	// Flush all 80 chars at once
-	write(p->fd, p->framebuf_hw, AX89063_HWFRAMEBUFLEN + 1);
+	result = write(p->fd, p->framebuf_hw, AX89063_HWFRAMEBUFLEN + 1);
 }
 
 MODULE_EXPORT void ax89063_close(Driver *drvthis) {
@@ -145,7 +136,9 @@ MODULE_EXPORT void ax89063_close(Driver *drvthis) {
 
 		free(p);
 	}
-	drvthis-> store_private_ptr(drvthis, NULL);
+	report(RPT_DEBUG, "%s: close: freed all dynamically allocated memory",
+			drvthis->name);
+	drvthis->store_private_ptr(drvthis, NULL);
 }
 
 MODULE_EXPORT int ax89063_width(Driver *drvthis) {
@@ -176,7 +169,6 @@ MODULE_EXPORT void ax89063_clear(Driver *drvthis) {
 MODULE_EXPORT void ax89063_string(Driver *drvthis, int x, int y,
 		const char string[]) {
 	int i = 0;
-	int j = 0;
 	PrivateData *p = drvthis->private_data;
 
 	/* Convert 1-based coords to 0-based... */
@@ -194,8 +186,6 @@ MODULE_EXPORT void ax89063_string(Driver *drvthis, int x, int y,
 }
 
 MODULE_EXPORT void ax89063_chr(Driver *drvthis, int x, int y, char c) {
-	int i = 0;
-	int j = 0;
 	PrivateData *p = drvthis->private_data;
 	y--;
 	x--;
@@ -207,10 +197,10 @@ MODULE_EXPORT void ax89063_chr(Driver *drvthis, int x, int y, char c) {
 MODULE_EXPORT const char *ax89063_get_key(Driver *drvthis) {
 	PrivateData *p = drvthis->private_data;
 	char key;
-	char *str;
+	char *str = NULL;
 
 	if (read(p->fd, &key, 1) == 1) {
-		report(RPT_DEBUG, "%s: get_key: key 0x%02X pressed", drvthis->name, in);
+		report(RPT_DEBUG, "%s: get_key: key 0x%02X pressed", drvthis->name, key);
 		switch (key) {
 		case 'U':
 			str = "up";
@@ -225,7 +215,6 @@ MODULE_EXPORT const char *ax89063_get_key(Driver *drvthis) {
 			str = "right";
 			break;
 		}
-	} else
-		return NULL;
+	}
 	return str;
 }
