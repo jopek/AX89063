@@ -246,11 +246,8 @@ MODULE_EXPORT void ax89063_close(Driver *drvthis) {
 			close(p->fd);
 		}
 
-		if (p->framebuf != NULL)
-			free(p->framebuf);
-
-		if (p->framebuf_hw != NULL)
-			free(p->framebuf_hw);
+		free(p->framebuf);
+		free(p->framebuf_hw);
 
 		free(p);
 	}
