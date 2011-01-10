@@ -177,6 +177,9 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 		report(RPT_ERR, "%s: unable to create LCD framebuffer", drvthis->name);
 		return -1;
 	}
+	/* Encode the start byte */
+	p->framebuf_hw[0] = (char) 0x0d;
+
 	return 0;
 }
 
@@ -204,7 +207,6 @@ MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 	for (y = 0; y < p->height; y++)
 		for (x = 0; x < p->width; x++)
 			p->framebuf_hw[y * (AX89063_HWFRAMEBUFLEN / 2) + x + 1] = *(str++);
-	p->framebuf_hw[0] = (char) 0x0d;
 
 	if ((ret = select(FD_SETSIZE, NULL, &fdset, NULL, &selectTimeout)) < 0) {
 		report(RPT_ERR, "%s: get_key: select() failed (%s)", drvthis->name,
