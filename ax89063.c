@@ -66,10 +66,10 @@ typedef struct driver_private_data {
 	int fd;
 	int width;
 	int height;
-	int size;
 	char *framebuf;
+	int framebuf_size;
+	int framebuf_clear;
 	char *framebuf_hw;
-	int framebuf_clr;
 } PrivateData;
 
 MODULE_EXPORT char * api_version = API_VERSION;
@@ -85,8 +85,8 @@ MODULE_EXPORT char *symbol_prefix = "ax89063_";
  * \param drvthis  Pointer to driver structure.
  */
 static inline void ax89063_clear_if_needed(PrivateData *p) {
-	memset(p->framebuf, ' ', p->size);
-	p->framebuf_clr = 0;
+	memset(p->framebuf, ' ', p->framebuf_size);
+	p->framebuf_clear = 0;
 }
 
 
@@ -104,15 +104,17 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	if ((p == NULL) || (drvthis->store_private_ptr(drvthis, p)))
 		return -1;
 
-	/* initialize private data */
-	p->fd = -1;
-	p->framebuf = NULL;
-	p->framebuf_hw = NULL;
-	p->framebuf_clr = 0;
+	/* Initialize private data */
+	/* These first items could be madeconfigurable */
 	p->speed = AX89063_SPEED;
 	p->width = AX89063_WIDTH;
 	p->height = AX89063_HEIGHT;
-	p->size = p->width * p->height;
+
+	p->fd = -1;
+	p->framebuf = NULL;
+	p->framebuf_hw = NULL;
+	p->framebuf_size = p->width * p->height;
+	p->framebuf_clear = 0;
 
 	/* Read config file */
 	/* Get device name, use default if it cannot be retrieved.*/
@@ -162,7 +164,7 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	tcsetattr(p->fd, TCSANOW, &portset);
 
 	/* Make sure the frame buffer is there... */
-	p->framebuf = (char *) malloc(p->size);
+	p->framebuf = (char *) malloc(p->framebuf_size);
 	if (p->framebuf == NULL) {
 		report(RPT_ERR, "%s: unable to create framebuffer", drvthis->name);
 		return -1;
@@ -204,7 +206,7 @@ MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 
 	ax89063_clear_if_needed(p);
 
-	//p->width * p->height == p->size
+	//p->width * p->height == p->framebuf_size
 	for (y = 0; y < p->height; y++)
 		for (x = 0; x < p->width; x++)
 			p->framebuf_hw[y * (AX89063_HWFRAMEBUFLEN / 2) + x + 1] = *(str++);
@@ -308,7 +310,7 @@ MODULE_EXPORT int ax89063_cellheight(Driver *drvthis) {
  */
 MODULE_EXPORT void ax89063_clear(Driver *drvthis) {
 	PrivateData *p = drvthis->private_data;
-	p->framebuf_clr = 1;
+	p->framebuf_clear = 1;
 }
 
 /**
