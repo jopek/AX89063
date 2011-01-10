@@ -66,6 +66,7 @@ typedef struct driver_private_data {
 	int fd;
 	int width;
 	int height;
+	int size;
 	char *framebuf;
 	char *framebuf_hw;
 	int framebuf_clr;
@@ -84,7 +85,7 @@ MODULE_EXPORT char *symbol_prefix = "ax89063_";
  * \param drvthis  Pointer to driver structure.
  */
 static inline void ax89063_clear_if_needed(PrivateData *p) {
-	memset(p->framebuf, ' ', p->width * p->height);
+	memset(p->framebuf, ' ', p->size);
 	p->framebuf_clr = 0;
 }
 
@@ -111,6 +112,7 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	p->speed = AX89063_SPEED;
 	p->width = AX89063_WIDTH;
 	p->height = AX89063_HEIGHT;
+	p->size = p->width * p->height;
 
 	/* Read config file */
 	/* Get device name, use default if it cannot be retrieved.*/
@@ -160,7 +162,7 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	tcsetattr(p->fd, TCSANOW, &portset);
 
 	/* Make sure the frame buffer is there... */
-	p->framebuf = (char *) malloc(p->width * p->height);
+	p->framebuf = (char *) malloc(p->size);
 	if (p->framebuf == NULL) {
 		report(RPT_ERR, "%s: unable to create framebuffer", drvthis->name);
 		return -1;
@@ -202,7 +204,7 @@ MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 
 	ax89063_clear_if_needed(p);
 
-	//p->width * p->height
+	//p->width * p->height == p->size
 	for (y = 0; y < p->height; y++)
 		for (x = 0; x < p->width; x++)
 			p->framebuf_hw[y * (AX89063_HWFRAMEBUFLEN / 2) + x + 1] = *(str++);
