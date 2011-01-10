@@ -62,12 +62,26 @@ typedef struct driver_private_data {
 	int cellheight;
 	char *framebuf;
 	char *framebuf_hw;
+	int framebuf_clr;
 } PrivateData;
 
 MODULE_EXPORT char * api_version = API_VERSION;
 MODULE_EXPORT int stay_in_foreground = 1;
 MODULE_EXPORT int supports_multiple = 0;
 MODULE_EXPORT char *symbol_prefix = "ax89063_";
+
+
+/**
+ * Reset the framebuffer with spaces if clear() was called before. The
+ * clearing of the screen is postponed to avoid hammering of the display
+ * which makes the keypad unresponsible.
+ * \param drvthis  Pointer to driver structure.
+ */
+static inline void ax89063_clear_if_needed(PrivateData *p) {
+	memset(p->framebuf, ' ', p->width * p->height);
+	p->framebuf_clr = 0;
+}
+
 
 /**
  * Initialize the driver.
@@ -87,6 +101,7 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	p->fd = -1;
 	p->framebuf = NULL;
 	p->framebuf_hw = NULL;
+	p->framebuf_clr = 0;
 	p->speed = AX89063_SPEED;
 	p->width = AX89063_WIDTH;
 	p->height = AX89063_HEIGHT;
@@ -174,6 +189,8 @@ MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 
 	FD_ZERO(&fdset);
 	FD_SET(p->fd, &fdset);
+
+	ax89063_clear_if_needed(p);
 
 	//p->width * p->height
 	for (y = 0; y < p->height; y++)
@@ -282,7 +299,7 @@ MODULE_EXPORT int ax89063_cellheight(Driver *drvthis) {
  */
 MODULE_EXPORT void ax89063_clear(Driver *drvthis) {
 	PrivateData *p = drvthis->private_data;
-	memset(p->framebuf, ' ', p->width * p->height);
+	p->framebuf_clr = 1;
 }
 
 /**
@@ -305,6 +322,7 @@ MODULE_EXPORT void ax89063_string(Driver *drvthis, int x, int y,
 	if ((y < 0) || (y >= p->height))
 		return;
 
+	ax89063_clear_if_needed(p);
 	for (i = 0; (string[i] != '\0') && (x < p->width); i++, x++) {
 		/* Check for buffer overflows... */
 		if (x >= 0)
@@ -325,6 +343,7 @@ MODULE_EXPORT void ax89063_chr(Driver *drvthis, int x, int y, char c) {
 	y--;
 	x--;
 
+	ax89063_clear_if_needed(p);
 	if ((x >= 0) && (y >= 0) && (x < p->width) && (y < p->height))
 		p->framebuf[(y * p->width) + x] = c;
 }
