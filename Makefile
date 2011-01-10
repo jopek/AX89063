@@ -23,7 +23,9 @@ veryclean:
 	
 
 $(LCDPROC_DIR)/Makefile: $(LCDPROC_DIR)/configure
-	cd $(LCDPROC_DIR) && ./configure --prefix=$(LCDPROC_DST) --enable-drivers=ax89063
+	cd $(LCDPROC_DIR) && ./configure --enable-debug \
+		--prefix=$(LCDPROC_DST) \
+		--enable-drivers=ax89063
 
 $(LCDPROC_DIR)/configure: $(LCDPROC_TGZ)
 	tar xfz $(LCDPROC_TGZ)
