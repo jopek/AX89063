@@ -16,9 +16,17 @@
  <http://eservice.axiomtek.com.tw/attach_files/K0509-0016/AX89063%20LCM%20Control%20Spec.pdf>
  (backup at <http://bitdump.msquadrat.de/2010/ax89063/AX89063%20LCM%20Control%20Spec.pdf>).
 
+ The protocol is simple: The AX89063 is a 16x2 display with a 40x2 character
+ framebuffer. Only the first 16 characters of each line are displayed. A
+ single 0x0d followed by the contents of the framebuffer trigger an update:
+ "\x0d0123456789abcdef************************0123456789abcdef************************"
+
+ The four buttons are encoded as (clockwise starting from top left): ULRD
+
  Copyright (C) 2011, Alexander Bluem <bluem [at] gmit-gmbh [dot] de>,
                                      <alex [at] binarchy [dot] net>
  Copyright (C) 2010, Kai Falkenberg <kai [at] layer0 [dot] de>
+ Copyright (C) 2010, Malte S. Stretz <http://msquadrat.de>
 
  The code is derived from the ms6931 and bayrad driver
 
