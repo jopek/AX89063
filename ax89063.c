@@ -12,6 +12,9 @@
  NA-822
  ... and probably some more ;)
 
+ The (rather useless) datasheet is available at
+ <http://eservice.axiomtek.com.tw/attach_files/K0509-0016/AX89063%20LCM%20Control%20Spec.pdf>
+ (backup at <http://bitdump.msquadrat.de/2010/ax89063/AX89063%20LCM%20Control%20Spec.pdf>).
 
  Copyright (C) 2011, Alexander Bluem <bluem [at] gmit-gmbh [dot] de>,
                                      <alex [at] binarchy [dot] net>
