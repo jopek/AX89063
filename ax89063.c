@@ -118,11 +118,36 @@ MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 	PrivateData *p = drvthis->private_data;
 	char *str = p->framebuf;
 
+	int ret = 0;
+	struct timeval selectTimeout = { 0, 0 };
+	fd_set fdset;
+
+	FD_ZERO(&fdset);
+	FD_SET(p->fd, &fdset);
+
 	//p->width * p->height
 	for (y = 0; y < p->height; y++)
 		for (x = 0; x < p->width; x++)
 			p->framebuf_hw[y * (AX89063_HWFRAMEBUFLEN / 2) + x + 1] = *(str++);
 	p->framebuf_hw[0] = (char) 0x0d;
+
+	if ((ret = select(FD_SETSIZE, NULL, &fdset, NULL, &selectTimeout)) < 0) {
+		report(RPT_ERR, "%s: get_key: select() failed (%s)", drvthis->name,
+				strerror(errno));
+		return;
+	}
+
+	// select() timed out
+	if (!ret) {
+		FD_SET(p->fd, &fdset);
+		return;
+	}
+
+	if (!FD_ISSET(p->fd, &fdset)) {
+		report(RPT_INFO, "%s: flush: select() nothing was written",
+				drvthis->name);
+		return;
+	}
 
 	// Flush all 80 chars at once
 	result = write(p->fd, p->framebuf_hw, AX89063_HWFRAMEBUFLEN + 1);
@@ -206,9 +231,37 @@ MODULE_EXPORT const char *ax89063_get_key(Driver *drvthis) {
 	PrivateData *p = drvthis->private_data;
 	char key;
 	char *str = NULL;
+	int ret = 0;
+	struct timeval selectTimeout = { 0, 500E3 };
+	fd_set fdset;
 
-	if (read(p->fd, &key, 1) == 1) {
-		report(RPT_DEBUG, "%s: get_key: key 0x%02X pressed", drvthis->name, key);
+	FD_ZERO(&fdset);
+	FD_SET(p->fd, &fdset);
+
+	if ((ret = select(FD_SETSIZE, &fdset, NULL, NULL, &selectTimeout)) < 0) {
+		report(RPT_ERR, "%s: get_key: select() failed (%s)", drvthis->name,
+				strerror(errno));
+		return NULL;
+	}
+
+	// select() timed out
+	if (!ret) {
+		FD_SET(p->fd, &fdset);
+		return NULL;
+	}
+
+	if (!FD_ISSET(p->fd, &fdset)) {
+		report(RPT_INFO, "%s: get_key: select() no keys pressed", drvthis->name);
+		return NULL;
+	}
+
+	if ((ret = read(p->fd, &key, 1)) < 0) {
+		report(RPT_ERR, "%s: get_key: read() failed and returned %d (%s)",
+				drvthis->name, ret, strerror(errno));
+		return NULL;
+	}
+
+	if (ret == 1) {
 		switch (key) {
 		case 'U':
 			str = "up";
