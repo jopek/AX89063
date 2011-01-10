@@ -85,6 +85,8 @@ MODULE_EXPORT char *symbol_prefix = "ax89063_";
  * \param drvthis  Pointer to driver structure.
  */
 static inline void ax89063_clear_if_needed(PrivateData *p) {
+	if (!p->framebuf_clear)
+		return;
 	memset(p->framebuf, ' ', p->framebuf_size);
 	p->framebuf_clear = 0;
 }
