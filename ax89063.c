@@ -169,6 +169,7 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 		report(RPT_ERR, "%s: unable to create framebuffer", drvthis->name);
 		return -1;
 	}
+	/* Initialize the framebuffer */
 	ax89063_clear(drvthis);
 
 	/* Make sure the frame buffer is there... */
@@ -179,6 +180,8 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	}
 	/* Encode the start byte */
 	p->framebuf_hw[0] = (char) 0x0d;
+	/* Initialize the framebuffer */
+	memset(p->framebuf_hw + 1, '*', AX89063_HWFRAMEBUFLEN);
 
 	return 0;
 }
