@@ -65,7 +65,8 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	}
 
 	/* Set up serial port and open it. */
-	p->fd = open(p->device, O_RDWR | O_NOCTTY, O_NDELAY);
+	p->fd = open(p->device, O_RDWR | O_NOCTTY | O_NONBLOCK);
+
 	if (p->fd == -1) {
 		report(RPT_ERR, "AX89063: serial: could not open device %s (%s)",
 				p->device, strerror(errno));
@@ -74,6 +75,8 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 
 	/* Get serial device parameters */
 	tcgetattr(p->fd, &portset);
+	cfsetospeed(&portset, p->speed);
+	cfsetispeed(&portset, p->speed);
 
 #ifdef HAVE_CFMAKERAW
 	cfmakeraw(&portset);
@@ -85,6 +88,11 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	portset.c_cflag &= ~(CSIZE | PARENB | CRTSCTS);
 	portset.c_cflag |= CS8 | CREAD | CLOCAL;
 #endif
+
+	portset.c_cc[VMIN] = 0;
+	portset.c_cc[VTIME] = 0;
+
+	tcsetattr(p->fd, TCSANOW, &portset);
 
 	/* Make sure the frame buffer is there... */
 	p->framebuf = (char *) malloc(p->width * p->height);
