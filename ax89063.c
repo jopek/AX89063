@@ -125,16 +125,6 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	p->device[sizeof(p->device) - 1] = '\0';
 	report(RPT_INFO, "%s: using Device %s", drvthis->name, p->device);
 
-	/* Get device speed. */
-	if (p->speed != AX89063_SPEED) {
-		report(
-				RPT_WARNING,
-				"%s: Illegal speed (%d) detected in config file. Using default (%d).",
-				drvthis->name, p->speed, AX89063_SPEED);
-	} else {
-		p->speed = AX89063_SPEED;
-	}
-
 	/* Set up serial port and open it. */
 	p->fd = open(p->device, O_RDWR | O_NOCTTY | O_NONBLOCK);
 
