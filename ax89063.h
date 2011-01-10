@@ -7,7 +7,7 @@
 
 // Use hardcoded interface for now
 #define AX89063_DEFAULT_DEVICE "/dev/ttyS1"
-#define AX89063_DEFAULT_SPEED B9600
+#define AX89063_SPEED B9600
 #define AX89063_WIDTH 16
 #define AX89063_HEIGHT 2
 #define AX89063_CELLWIDTH 5

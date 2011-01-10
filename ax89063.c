@@ -42,7 +42,7 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	p->fd = -1;
 	p->framebuf = NULL;
 	p->framebuf_hw = NULL;
-	p->speed = AX89063_DEFAULT_SPEED;
+	p->speed = AX89063_SPEED;
 	p->width = AX89063_WIDTH;
 	p->height = AX89063_HEIGHT;
 	p->cellwidth = AX89063_CELLWIDTH;
@@ -55,13 +55,13 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	report(RPT_INFO, "%s: using Device %s", drvthis->name, p->device);
 
 	/* Get device speed. */
-	if (p->speed != AX89063_DEFAULT_SPEED) {
+	if (p->speed != AX89063_SPEED) {
 		report(
 				RPT_WARNING,
 				"%s: Illegal speed (%d) detected in config file. Using default (%d).",
-				drvthis->name, p->speed, AX89063_DEFAULT_SPEED);
+				drvthis->name, p->speed, AX89063_SPEED);
 	} else {
-		p->speed = AX89063_DEFAULT_SPEED;
+		p->speed = AX89063_SPEED;
 	}
 
 	/* Set up serial port and open it. */
