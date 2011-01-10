@@ -35,7 +35,6 @@
 
 #ifndef __AX89063_H__
 #define __AX89063_H__
-#define __AX89063_H__
 
 #include "lcd.h"
 
