@@ -1,3 +1,38 @@
+/** \file server/drivers/ax89063.c
+ * LCDd \c ax89063 driver for AXIOMTEK 89063 LCDs..
+ */
+
+/*  This is the LCDproc driver for AXIOMTEK 89063 displays
+ as found in the following 1U AXIOMTEK rack servers:
+ NA-510
+ NA-710
+ NA-814
+ NA-820
+ NA-821
+ NA-822
+ ... and probably some more ;)
+
+
+ Copyright (C) 2011, Alexander Bluem <bluem [at] gmit-gmbh [dot] de>,
+                                     <alex [at] binarchy [dot] net>
+ Copyright (C) 2010, Kai Falkenberg <kai [at] layer0 [dot] de>
+
+ The code is derived from the ms6931 and bayrad driver
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -31,6 +66,12 @@ MODULE_EXPORT int stay_in_foreground = 1;
 MODULE_EXPORT int supports_multiple = 0;
 MODULE_EXPORT char *symbol_prefix = "ax89063_";
 
+/**
+ * Initialize the driver.
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0       Success.
+ * \retval <0      Error.
+ */
 MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	PrivateData *p;
 	struct termios portset;
@@ -39,6 +80,7 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	if ((p == NULL) || (drvthis->store_private_ptr(drvthis, p)))
 		return -1;
 
+	/* initialize private data */
 	p->fd = -1;
 	p->framebuf = NULL;
 	p->framebuf_hw = NULL;
@@ -48,6 +90,7 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	p->cellwidth = AX89063_CELLWIDTH;
 	p->cellheight = AX89063_CELLHEIGHT;
 
+	/* Read config file */
 	/* Get device name, use default if it cannot be retrieved.*/
 	strncpy(p->device, drvthis->config_get_string(drvthis->name, "Device", 0,
 			AX89063_DEFAULT_DEVICE), sizeof(p->device));
@@ -73,7 +116,7 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 		return -1;
 	}
 
-	/* Get serial device parameters */
+	/* Get and set serial device parameters */
 	tcgetattr(p->fd, &portset);
 	cfsetospeed(&portset, p->speed);
 	cfsetispeed(&portset, p->speed);
@@ -111,6 +154,10 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	return 0;
 }
 
+/**
+ * Flush data on screen to the LCD.
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 	int x, y, result;
 	PrivateData *p = drvthis->private_data;
@@ -137,7 +184,7 @@ MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 		return;
 	}
 
-	// select() timed out
+	// select() timed out - unlikely
 	if (!ret) {
 		FD_SET(p->fd, &fdset);
 		return;
@@ -158,10 +205,14 @@ MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 
 	csum_s = csum;
 
-	// Flush all 80 chars at once
+	// Flush all 81 chars at once
 	result = write(p->fd, p->framebuf_hw, AX89063_HWFRAMEBUFLEN + 1);
 }
 
+/**
+ * Close the driver (do necessary clean-up).
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void ax89063_close(Driver *drvthis) {
 	PrivateData *p = drvthis->private_data;
 
@@ -181,31 +232,64 @@ MODULE_EXPORT void ax89063_close(Driver *drvthis) {
 	drvthis->store_private_ptr(drvthis, NULL);
 }
 
+/**
+ * Return the display width in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of characters the display is wide.
+ */
 MODULE_EXPORT int ax89063_width(Driver *drvthis) {
 	PrivateData *p = drvthis->private_data;
 	return p->width;
 }
 
+/**
+ * Return the display height in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of characters the display is high.
+ */
 MODULE_EXPORT int ax89063_height(Driver *drvthis) {
 	PrivateData *p = drvthis->private_data;
 	return p->height;
 }
 
+/**
+ * Return the width of a character in pixels.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of pixel columns a character cell is wide.
+ */
 MODULE_EXPORT int ax89063_cellwidth(Driver *drvthis) {
 	PrivateData *p = drvthis->private_data;
 	return p->cellwidth;
 }
 
+/**
+ * Return the height of a character in pixels.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of pixel lines a character cell is high.
+ */
 MODULE_EXPORT int ax89063_cellheight(Driver *drvthis) {
 	PrivateData *p = drvthis->private_data;
 	return p->cellheight;
 }
 
+/**
+ * Clear the screen. clear() actually clears the buffer by
+ * filling it with spaces, 0x20.
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void ax89063_clear(Driver *drvthis) {
 	PrivateData *p = drvthis->private_data;
 	memset(p->framebuf, ' ', p->width * p->height);
 }
 
+/**
+ * Print a string on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param string   String that gets written.
+ */
 MODULE_EXPORT void ax89063_string(Driver *drvthis, int x, int y,
 		const char string[]) {
 	int i = 0;
@@ -225,6 +309,14 @@ MODULE_EXPORT void ax89063_string(Driver *drvthis, int x, int y,
 	}
 }
 
+/**
+ * Print a character on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param c        Character that gets written.
+ */
 MODULE_EXPORT void ax89063_chr(Driver *drvthis, int x, int y, char c) {
 	PrivateData *p = drvthis->private_data;
 	y--;
@@ -234,11 +326,20 @@ MODULE_EXPORT void ax89063_chr(Driver *drvthis, int x, int y, char c) {
 		p->framebuf[(y * p->width) + x] = c;
 }
 
+/**
+ * Get key from the device.
+ * \param drvthis  Pointer to driver structure.
+ * \return         String representation of the key;
+ *                 \c NULL if nothing available / unmapped key.
+ */
 MODULE_EXPORT const char *ax89063_get_key(Driver *drvthis) {
 	PrivateData *p = drvthis->private_data;
 	char key;
 	char *str = NULL;
 	int ret = 0;
+
+	/* the timeout time is set high, as the display is unresponsive when
+	 * just written to */
 	struct timeval selectTimeout = { 0, 500E3 };
 	fd_set fdset;
 
