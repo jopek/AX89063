@@ -66,8 +66,6 @@ typedef struct driver_private_data {
 	int fd;
 	int width;
 	int height;
-	int cellwidth;
-	int cellheight;
 	char *framebuf;
 	char *framebuf_hw;
 	int framebuf_clr;
@@ -113,8 +111,6 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 	p->speed = AX89063_SPEED;
 	p->width = AX89063_WIDTH;
 	p->height = AX89063_HEIGHT;
-	p->cellwidth = AX89063_CELLWIDTH;
-	p->cellheight = AX89063_CELLHEIGHT;
 
 	/* Read config file */
 	/* Get device name, use default if it cannot be retrieved.*/
@@ -291,8 +287,7 @@ MODULE_EXPORT int ax89063_height(Driver *drvthis) {
  * \return         Number of pixel columns a character cell is wide.
  */
 MODULE_EXPORT int ax89063_cellwidth(Driver *drvthis) {
-	PrivateData *p = drvthis->private_data;
-	return p->cellwidth;
+	return AX89063_CELLWIDTH;
 }
 
 /**
@@ -301,8 +296,7 @@ MODULE_EXPORT int ax89063_cellwidth(Driver *drvthis) {
  * \return         Number of pixel lines a character cell is high.
  */
 MODULE_EXPORT int ax89063_cellheight(Driver *drvthis) {
-	PrivateData *p = drvthis->private_data;
-	return p->cellheight;
+	return AX89063_CELLHEIGHT;
 }
 
 /**
