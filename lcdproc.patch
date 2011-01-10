@@ -1,0 +1,67 @@
+diff --git a/acinclude.m4 b/acinclude.m4
+index eadcd47..872d7cc 100644
+--- a/acinclude.m4
++++ b/acinclude.m4
+@@ -8,8 +8,8 @@ AC_ARG_ENABLE(drivers,
+ 	[  --enable-drivers=<list> compile drivers for LCDs in <list>,]
+ 	[                  which is a comma-separated list of drivers.]
+ 	[                  Possible drivers are:]
+-	[                    bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,]
+-	[                    ea65,EyeboxOne,g15,glcdlib,glk,hd44780,i2500vfd,]
++	[                    ax89063,bayrad,CFontz,CFontz633,CFontzPacket,curses,]
++	[                    CwLnx,ea65,EyeboxOne,g15,glcdlib,glk,hd44780,i2500vfd,]
+ 	[                    icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,]
+ 	[                    joy,lb216,lcdm001,lcterm,lirc,lis,MD8800,mdm166a,]
+ 	[                    ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,]
+@@ -20,9 +20,9 @@ AC_ARG_ENABLE(drivers,
+ 	[                  'all' compiles all drivers;]
+ 	[                  'all,!xxx,!yyy' de-selects previously selected drivers],
+ 	drivers="$enableval",
+-	drivers=[bayrad,CFontz,CFontz633,curses,CwLnx,glk,lb216,lcdm001,MtxOrb,pyramid,text])
++	drivers=[ax89063,bayrad,CFontz,CFontz633,curses,CwLnx,glk,lb216,lcdm001,MtxOrb,pyramid,text])
+ 
+-allDrivers=[bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,ea65,EyeboxOne,g15,glcdlib,glk,hd44780,i2500vfd,icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,joy,lb216,lcdm001,lcterm,lirc,lis,MD8800,mdm166a,ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,picolcd,pyramid,sed1330,sed1520,serialPOS,serialVFD,shuttleVFD,sli,stv5730,SureElec,svga,t6963,text,tyan,ula200,xosd]
++allDrivers=[ax89063,bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,ea65,EyeboxOne,g15,glcdlib,glk,hd44780,i2500vfd,icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,joy,lb216,lcdm001,lcterm,lirc,lis,MD8800,mdm166a,ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,picolcd,pyramid,sed1330,sed1520,serialPOS,serialVFD,shuttleVFD,sli,stv5730,SureElec,svga,t6963,text,tyan,ula200,xosd]
+ if test "$debug" = yes; then
+ 	allDrivers=["${allDrivers},debug"]
+ fi
+@@ -50,6 +50,10 @@ done
+ dnl check for wanted drivers and their dependencies
+ for driver in $selectdrivers ; do
+ 	case "$driver" in
++		ax89063)
++			DRIVERS="$DRIVERS ax89063${SO}"
++			actdrivers=["$actdrivers ax89063"]
++			;;
+ 		bayrad)
+ 			DRIVERS="$DRIVERS bayrad${SO}"
+ 			actdrivers=["$actdrivers bayrad"]
+diff --git a/server/drivers/Makefile.am b/server/drivers/Makefile.am
+index 8c5ca57..0916474 100644
+--- a/server/drivers/Makefile.am
++++ b/server/drivers/Makefile.am
+@@ -21,7 +21,7 @@ AM_LDFLAGS = @LDSHARED@
+ ## Keep the lists sorted!
+ 
+ pkglib_PROGRAMS = @DRIVERS@
+-EXTRA_PROGRAMS = bayrad CFontz CFontz633 CFontzPacket curses debug CwLnx ea65 EyeboxOne g15 glcdlib glk hd44780 icp_a106 imon imonlcd IOWarrior irman joy lb216 lcdm001 lcterm lirc lis MD8800 mdm166a ms6931 mtc_s16209x MtxOrb mx5000 NoritakeVFD picolcd pyramid sed1330 sed1520 serialPOS serialVFD shuttleVFD stv5730 SureElec svga t6963 text tyan sli ula200 xosd i2500vfd irtrans
++EXTRA_PROGRAMS = ax89063 bayrad CFontz CFontz633 CFontzPacket curses debug CwLnx ea65 EyeboxOne g15 glcdlib glk hd44780 icp_a106 imon imonlcd IOWarrior irman joy lb216 lcdm001 lcterm lirc lis MD8800 mdm166a ms6931 mtc_s16209x MtxOrb mx5000 NoritakeVFD picolcd pyramid sed1330 sed1520 serialPOS serialVFD shuttleVFD stv5730 SureElec svga t6963 text tyan sli ula200 xosd i2500vfd irtrans
+ noinst_LIBRARIES = libLCD.a libbignum.a
+ 
+ g15_CFLAGS =         @LIBUSB_CFLAGS@ $(AM_CFLAGS)
+@@ -34,6 +34,7 @@ picolcd_CFLAGS =     @LIBUSB_CFLAGS@ $(AM_CFLAGS)
+ shuttleVFD_CFLAGS =  @LIBUSB_CFLAGS@ $(AM_CFLAGS)
+ ula200_CFLAGS =      @LIBFTDI_CFLAGS@ $(AM_CFLAGS)
+ 
++ax89063_LDADD =      libLCD.a
+ bayrad_LDADD =       libLCD.a
+ CFontz_LDADD =       libLCD.a libbignum.a
+ CFontz633_LDADD =    libLCD.a libbignum.a
+@@ -74,6 +75,7 @@ xosd_LDADD =         @LIBXOSD@ libbignum.a
+ libLCD_a_SOURCES =   lcd_lib.h lcd_lib.c
+ libbignum_a_SOURCES = adv_bignum.h  adv_bignum.c
+ 
++ax89063_SOURCES =    lcd.h lcd_lib.h ax89063.h ax89063.c report.h
+ bayrad_SOURCES =     lcd.h lcd_lib.h bayrad.h bayrad.c report.h
+ CFontz_SOURCES =     lcd.h lcd_lib.h CFontz.c CFontz.h CFontz-charmap.h report.h adv_bignum.h
+ CFontz633_SOURCES =  lcd.h lcd_lib.h CFontz633.c CFontz633.h CFontz-charmap.h CFontz633io.c CFontz633io.h report.h adv_bignum.h
