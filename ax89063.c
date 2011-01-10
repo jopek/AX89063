@@ -117,6 +117,8 @@ MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 	int x, y, result;
 	PrivateData *p = drvthis->private_data;
 	char *str = p->framebuf;
+	static int csum_s = 0;
+	int csum = 0;
 
 	int ret = 0;
 	struct timeval selectTimeout = { 0, 0 };
@@ -148,6 +150,15 @@ MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 				drvthis->name);
 		return;
 	}
+
+	// Minimize the number of writing cycles to max the responsiveness
+	for (x = 0; x < AX89063_HWFRAMEBUFLEN; x++)
+		csum += p->framebuf_hw[x];
+
+	if (csum == csum_s)
+		return;
+
+	csum_s = csum;
 
 	// Flush all 80 chars at once
 	result = write(p->fd, p->framebuf_hw, AX89063_HWFRAMEBUFLEN + 1);
