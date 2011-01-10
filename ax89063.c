@@ -108,8 +108,6 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 		report(RPT_ERR, "%s: unable to create LCD framebuffer", drvthis->name);
 		return -1;
 	}
-
-	report(RPT_DEBUG, "%s: init() done", drvthis->name);
 	return 0;
 }
 
@@ -180,8 +178,6 @@ MODULE_EXPORT void ax89063_close(Driver *drvthis) {
 
 		free(p);
 	}
-	report(RPT_DEBUG, "%s: close: freed all dynamically allocated memory",
-			drvthis->name);
 	drvthis->store_private_ptr(drvthis, NULL);
 }
 
