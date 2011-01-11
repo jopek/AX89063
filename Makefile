@@ -20,6 +20,9 @@ clean:
 veryclean:
 	rm -rf $(LCDPROC_DIR)
 	rm -rf $(LCDPROC_DST)
+
+getdir:
+	@echo $(LCDPROC_DIR)
 	
 
 $(LCDPROC_DIR)/Makefile: $(LCDPROC_DIR)/configure
