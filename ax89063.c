@@ -73,7 +73,7 @@ typedef struct driver_private_data {
 
 MODULE_EXPORT char * api_version = API_VERSION;
 MODULE_EXPORT int stay_in_foreground = 1;
-MODULE_EXPORT int supports_multiple = 0;
+MODULE_EXPORT int supports_multiple = 1;
 MODULE_EXPORT char *symbol_prefix = "ax89063_";
 
 /**
