@@ -183,9 +183,10 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
  * \param drvthis  Pointer to driver structure.
  */
 MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
-	int x, y, result;
+	int x, result;
 	PrivateData *p = drvthis->private_data;
-	char *str = p->framebuf;
+	char *ibuf, *obuf;
+
 	static int csum_s = 0;
 	int csum = 0;
 
@@ -198,10 +199,12 @@ MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 
 	ax89063_clear_if_needed(p);
 
-	//p->width * p->height == p->framebuf_size
-	for (y = 0; y < p->height; y++)
-		for (x = 0; x < p->width; x++)
-			p->framebuf_hw[y * (AX89063_HWFRAMEBUFLEN / 2) + x + 1] = *(str++);
+	/* Map framebuffer */
+	obuf = p->framebuf_hw + 1;
+	for (ibuf = p->framebuf; ibuf < p->framebuf + p->framebuf_size; ibuf += p->width) {
+		memcpy(obuf, ibuf, p->width);
+		obuf += AX89063_HWFRAMEBUFLEN / p->height;
+	}
 
 	if ((ret = select(FD_SETSIZE, NULL, &fdset, NULL, &selectTimeout)) < 0) {
 		report(RPT_ERR, "%s: get_key: select() failed (%s)", drvthis->name,
