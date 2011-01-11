@@ -193,13 +193,12 @@ MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 	FD_ZERO(&fdset);
 	FD_SET(p->fd, &fdset);
 
-	ax89063_clear_if_needed(p);
-
 	/* Map framebuffer */
-	obuf = p->framebuf_hw + 1;
-	for (ibuf = p->framebuf; ibuf < p->framebuf + p->framebuf_size; ibuf += p->width) {
+	ax89063_clear_if_needed(p);
+	for (ibuf = p->framebuf, obuf = p->framebuf_hw + 1;
+			ibuf < p->framebuf + p->framebuf_size;
+			ibuf += p->width, obuf += AX89063_HWFRAMEBUFLEN / p->height) {
 		memcpy(obuf, ibuf, p->width);
-		obuf += AX89063_HWFRAMEBUFLEN / p->height;
 	}
 
 	if ((ret = select(FD_SETSIZE, NULL, &fdset, NULL, &selectTimeout)) < 0) {
