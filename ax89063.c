@@ -98,8 +98,8 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 
 	p->fd = -1;
 	p->framebuf = NULL;
-	p->framebuf_hw = NULL;
 	p->framebuf_size = p->width * p->height;
+	p->framebuf_hw = NULL;
 
 	/* Read config file */
 	/* Get device name, use default if it cannot be retrieved.*/
