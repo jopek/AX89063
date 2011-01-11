@@ -185,6 +185,7 @@ MODULE_EXPORT int ax89063_init(Driver *drvthis) {
 MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 	PrivateData *p = drvthis->private_data;
 	char *ibuf, *obuf;
+	int dirty;
 
 	int ret = 0;
 	struct timeval selectTimeout = { 0, 0 };
@@ -194,11 +195,15 @@ MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 	FD_SET(p->fd, &fdset);
 
 	/* Map framebuffer */
+	dirty = 0;
 	ax89063_clear_if_needed(p);
 	for (ibuf = p->framebuf, obuf = p->framebuf_hw + 1;
 			ibuf < p->framebuf + p->framebuf_size;
 			ibuf += p->width, obuf += AX89063_HWFRAMEBUFLEN / p->height) {
-		memcpy(obuf, ibuf, p->width);
+		if (memcmp(ibuf, obuf, p->width) != 0) {
+			memcpy(obuf, ibuf, p->width);
+			dirty = 1;
+		}
 	}
 
 	if ((ret = select(FD_SETSIZE, NULL, &fdset, NULL, &selectTimeout)) < 0) {
@@ -219,6 +224,11 @@ MODULE_EXPORT void ax89063_flush(Driver *drvthis) {
 		return;
 	}
 
+	/* Step out early if there's nothing to write */
+	if (!dirty) {
+		return;
+	}
+	
 	/* Flush all 81 chars at once */
 	ret = write(p->fd, p->framebuf_hw, AX89063_HWFRAMEBUFLEN + 1);
 }
