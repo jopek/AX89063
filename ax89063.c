@@ -373,16 +373,16 @@ MODULE_EXPORT const char *ax89063_get_key(Driver *drvthis) {
 	if (ret == 1) {
 		switch (key) {
 		case 'U':
-			str = "up";
+			str = "Up";
 			break;
 		case 'D':
-			str = "down";
+			str = "Down";
 			break;
 		case 'L':
-			str = "left";
+			str = "Left";
 			break;
 		case 'R':
-			str = "right";
+			str = "Right";
 			break;
 		}
 	}
